@@ -1926,6 +1926,14 @@
     wdvLoadCfg();
     if(!wdv.cfg.token){toast("请先填写 GitHub Token");return;}
     if(!wdv.cfg.enabled){toast("请先勾选「开启自动同步」");return;}
+    // 防频繁调用：手动同步最小间隔 15 秒，避免触发 GitHub API 速率限制
+    var now=Date.now();
+    if(wdv.lastSyncAt&&(now-wdv.lastSyncAt)<15000){
+      var wait=Math.ceil((15000-(now-wdv.lastSyncAt))/1000);
+      toast("操作太频繁，请 "+wait+" 秒后再试（GitHub API 有速率限制）");
+      return;
+    }
+    wdv.lastSyncAt=now;
     if(wdv.localUpdatedAt===0)wdv.localUpdatedAt=Date.now();
     wdvSetStatus("正在同步…");
     wdvPull();
@@ -1944,7 +1952,12 @@
       wdvLoadCfg();
       if(!wdv.cfg.enabled||!wdv.cfg.token)return;
       wdvSetStatus("正在同步…");
-      setTimeout(function(){wdvPull();},800);
+      // 页面加载后延迟拉取；如果 10 秒内刚同步过则跳过，减少 API 调用
+      setTimeout(function(){
+        if(wdv.lastSyncAt&&(Date.now()-wdv.lastSyncAt)<10000)return;
+        wdv.lastSyncAt=Date.now();
+        wdvPull();
+      },800);
     }catch(e){}
   }
   function syncHtml(){
