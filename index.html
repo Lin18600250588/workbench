@@ -1442,8 +1442,9 @@
     return rows;
   }
   function genTimetable(){
-    var times=[{period:"早读",start:"07:30",end:"07:55"},{period:"第1节",start:"08:00",end:"08:45"},{period:"第2节",start:"08:55",end:"09:40"},{period:"大课间",start:"09:40",end:"10:05"},{period:"第3节",start:"10:10",end:"10:55"},{period:"第4节",start:"11:05",end:"11:50"},{period:"午休",start:"12:00",end:"13:50"},{period:"第5节",start:"14:00",end:"14:45"},{period:"第6节",start:"14:55",end:"15:40"},{period:"第7节",start:"15:50",end:"16:35"},{period:"晚自习",start:"19:00",end:"21:30"}];
-    var plan=[["语文","数学","英语","物理","化学","生物","自习","班会"],["数学","英语","语文","化学","物理","政治","自习","自习"],["英语","语文","数学","生物","历史","物理","自习","自习"],["语文","物理","英语","数学","地理","化学","自习","自习"],["数学","英语","政治","语文","物理","生物","自习","自习"]];
+    var times=[{period:"第1节",start:"08:00",end:"08:40"},{period:"第2节",start:"08:55",end:"09:55"},{period:"大课间",start:"09:55",end:"10:10"},{period:"第3节",start:"10:10",end:"10:50"},{period:"第4节",start:"11:05",end:"11:45"},{period:"午休",start:"11:45",end:"13:00"},{period:"第5节",start:"13:10",end:"13:50"},{period:"第6节",start:"14:05",end:"14:45"},{period:"第7节",start:"15:00",end:"15:40"},{period:"第8节",start:"15:55",end:"16:35"},{period:"第9节",start:"16:50",end:"17:30"}];
+    var plan=[["英语","体育","数学","音乐","生物","语文","道德与法治","自习","社团选修"],["英语","体育","数学","美术","语文","语文","舞蹈","班会","BA大讲堂"],["数学","体育","英语","语文","地理","劳动技术","生物","历史","社团选修"],["语文","体育","英语","书法","数学","数学","自习","信息技术","AI智能"],["体育","数学","语文","道德与法治","英语","地理","英语二","自习","历史"]];
+    var teacherMap={"体育":"刘宏运","音乐":"吴芮逸","美术":"黄远","书法":"李帅文","道德与法治":"高英杰","生物":"赵利铭","地理":"周祎晗","劳动技术":"郝建秀","舞蹈":"赖晓微","历史":"林浩然","信息技术":"郭娜","AI智能":"郭娜","英语二":"廖丽芳","班会":"林浩然"};
     var sch=[];
     for(var d=0;d<5;d++){
       var row=[];var ci=0;
@@ -1453,7 +1454,8 @@
         if(period==="午休"){row.push({subject:"午休",teacher:"",note:"午餐与午休"});continue;}
         if(period==="早读"){row.push({subject:"早读",teacher:"",note:""});continue;}
         var sb=plan[d][ci];ci++;
-        row.push({subject:sb,teacher:sb==="自习"||sb==="班会"?"李老师":(sb+"老师"),note:""});
+        var tn=teacherMap[sb]||(sb==="自习"||sb==="社团选修"||sb==="BA大讲堂"?"":(sb+"老师"));
+        row.push({subject:sb,teacher:tn,note:""});
       }
       sch.push(row);
     }
@@ -2099,7 +2101,7 @@
       }
       if(ss.layout.length>ss.rows)ss.layout.length=ss.rows;
     })();
-    d.timetable=(d.timetable&&d.timetable.schedule&&d.timetable.times)?d.timetable:genTimetable();
+    d.timetable=genTimetable();
     d.lessonSwaps=d.lessonSwaps||[];
     d.lessonNotes=d.lessonNotes||{};
     d.seatPlans=d.seatPlans||[];
@@ -2604,7 +2606,7 @@
     var todos=DB.todos.map(function(t){return '<div class="todo'+(t.completed?" done":"")+'"><div class="check'+(t.completed?" done":"")+'" onclick="App.toggleTodo(\''+t.id+'\')">'+(t.completed?"✓":"")+'</div><div class="tt">'+esc(t.content)+'</div><span class="pill">'+t.priority+'</span><div class="due">'+esc(t.deadline)+'</div></div>';}).join("");
 
     var wd=(new Date().getDay()+6)%7; // 周一=0
-    var todayTT = wd<5 ? DB.timetable.schedule[wd].map(function(c,p){return {tm:DB.timetable.times[p].period+" "+DB.timetable.times[p].start, sb:c.subject, rm:c.teacher, self:c.subject==="自习"||c.subject==="班会"};}) : [];
+    var todayTT = wd<5 ? DB.timetable.schedule[wd].map(function(c,p){return {tm:DB.timetable.times[p].period+" "+DB.timetable.times[p].start, sb:c.subject, rm:c.teacher, self:c.teacher==="林浩然"};}) : [];
     var periods=todayTT.length?todayTT.map(function(p){return '<div class="period'+(p.self?" self":"")+'"><div class="tm">'+p.tm+'</div><div><div class="sb">'+p.sb+'</div><div class="rm">'+p.rm+'</div></div>'+(p.self?'<span class="badge-self">本人任教</span>':'')+'</div>';}).join(""):'<div class="empty">今天非教学日</div>';
 
     var quicks=[["students","新增学生"],["grades","录入成绩"],["homework","布置作业"],["leave","请假登记"],["affairs","记违纪"],["evaluate","写评语"],["home","发通知"],["tasks","加待办"],["ai","智能助手"]].filter(function(q){return moduleOn(q[0]);}).map(function(q){return '<button onclick="App.setView(\''+q[0]+'\')"><span class="qi">'+(ICONS[q[0]]||"")+'</span><span class="ql">'+q[1]+'</span></button>';}).join("");
