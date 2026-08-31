@@ -1868,10 +1868,19 @@
   }
   function wdvAfterSave(){
     if(!wdv.cfg)wdvLoadCfg();
-    if(!wdv.cfg.enabled||!wdv.cfg.token||!wdv.cfg.gistId)return;
     if(wdv.applyingRemote)return;
+    // 无论 gistId 是否已找到，都先更新本地时间戳
+    // 修复：新设备 gistId 未找到时 return 导致时间戳不更新，后续找到 Gist 后误判"已是最新"，本地修改永远不上传
     wdv.localUpdatedAt=Date.now();
     wdvSaveCfg();
+    if(!wdv.cfg.enabled||!wdv.cfg.token)return;
+    if(!wdv.cfg.gistId){
+      // gistId 未找到：先查找已有 Gist，找到后立即上传本地修改
+      wdvEnsureGist().then(function(id){
+        if(id)wdvSchedulePush();
+      });
+      return;
+    }
     wdvSchedulePush();
   }
   function wdvSetStatus(msg){
