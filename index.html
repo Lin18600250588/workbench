@@ -1804,48 +1804,60 @@
   function wdvPull(){
     if(wdv.busy)return Promise.resolve();
     if(!wdv.cfg.token||!wdv.cfg.enabled)return Promise.resolve();
-    if(!wdv.cfg.gistId){
-      if(wdv.localUpdatedAt===0)wdv.localUpdatedAt=Date.now();
-      wdv.pulledOnce=true;
-      return wdvPush(); // 首次：直接上传本地数据并创建同步 Gist
-    }
-    wdv.busy=true;
-    wdvSetStatus("正在拉取…");
-    return wdvFetch("/gists/"+wdv.cfg.gistId).then(function(g){
-      wdv.busy=false;wdv.pulledOnce=true;
-      var content=null;
-      if(g&&g.files&&g.files[GIST_FILE])content=g.files[GIST_FILE].content;
-      if(!content){wdvPush();return;}
-      var remote=null;
-      try{remote=JSON.parse(content);}catch(e){}
-      var rt=remote&&remote.updatedAt?remote.updatedAt:0;
-      var lt=wdv.localUpdatedAt||0;
-      if(rt>lt){
-        // 云端更新 → 用云端覆盖本地
-        try{
-          var d=migrate(remote.data);
-          wdv.applyingRemote=true;
-          DB=d;wdv.localUpdatedAt=rt;
-          save();render();
-          wdv.applyingRemote=false;
-          wdvSetStatus("✅ 已从云端更新 "+fmtTime(rt));
-          wdvSaveCfg();
-        }catch(e){
-          wdv.lastErr=e.message;
-          wdvSetStatus("❌ 云端数据解析失败："+e.message);
+    function doPull(){
+      if(!wdv.cfg.gistId){
+        if(wdv.localUpdatedAt===0)wdv.localUpdatedAt=Date.now();
+        wdv.pulledOnce=true;
+        return wdvPush();
+      }
+      wdv.busy=true;
+      wdvSetStatus("正在拉取…");
+      return wdvFetch("/gists/"+wdv.cfg.gistId).then(function(g){
+        wdv.busy=false;wdv.pulledOnce=true;
+        var content=null;
+        if(g&&g.files&&g.files[GIST_FILE])content=g.files[GIST_FILE].content;
+        if(!content){wdvPush();return;}
+        var remote=null;
+        try{remote=JSON.parse(content);}catch(e){}
+        var rt=remote&&remote.updatedAt?remote.updatedAt:0;
+        var lt=wdv.localUpdatedAt||0;
+        if(rt>lt){
+          var remoteEmpty=!remote.data||!remote.data.students||remote.data.students.length===0;
+          var localHas=DB&&DB.students&&DB.students.length>0;
+          if(remoteEmpty&&localHas){
+            wdvSetStatus("⚠️ 云端数据为空，已保留本地数据并上传");
+            wdv.localUpdatedAt=Date.now();wdvSaveCfg();wdvPush();return;
+          }
+          try{
+            var d=migrate(remote.data);
+            wdv.applyingRemote=true;
+            DB=d;wdv.localUpdatedAt=rt;
+            save();render();
+            wdv.applyingRemote=false;
+            wdvSetStatus("✅ 已从云端更新 "+fmtTime(rt));
+            wdvSaveCfg();
+          }catch(e){
+            wdv.lastErr=e.message;
+            wdvSetStatus("❌ 云端数据解析失败："+e.message);
+            wdvSaveCfg();
+          }
+        }else if(lt>rt){
+          wdvPush();
+        }else{
+          wdvSetStatus("✅ 已是最新 "+fmtTime(Date.now()));
           wdvSaveCfg();
         }
-      }else if(lt>rt){
-        wdvPush(); // 本地更新 → 上传
-      }else{
-        wdvSetStatus("✅ 已是最新 "+fmtTime(Date.now()));
+      }).catch(function(e){
+        wdv.busy=false;wdv.lastErr=e.message;
+        wdvSetStatus("❌ 拉取失败："+e.message);
         wdvSaveCfg();
-      }
-    }).catch(function(e){
-      wdv.busy=false;wdv.lastErr=e.message;
-      wdvSetStatus("❌ 拉取失败："+e.message);
-      wdvSaveCfg();
-    });
+      });
+    }
+    if(!wdv.cfg.gistId){
+      wdvSetStatus("正在查找云端数据…");
+      return wdvEnsureGist().then(function(){ doPull(); });
+    }
+    return doPull();
   }
   function wdvSchedulePush(){
     clearTimeout(wdv.timer);
